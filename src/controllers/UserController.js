@@ -122,6 +122,61 @@ const signIn = async function (req, res) {
 }
 
 
+
+const oAuth = async function (req, res) {
+    const { email, firstName, lastName } = req.body;
+    let token, user;
+    const userAgent = useragent.parse(req.headers["user-agent"]).toString();
+    try {
+      console.log(req.body);
+      user = await fetchOne(User, { email }, ["mailingPreferencesId"]);
+      console.log(user);
+      if (user == null) {
+        user = await create(User, { email, firstName, lastName });
+        const userAgent = useragent.parse(req.headers["user-agent"]).toString();
+        token = await user.generateAuthToken(userAgent);
+        //prep email data
+        const emailData = {
+          subject: "Welcome To Firacard",
+          msgTo: user.email,
+          bodyText: `Hello, welcome aboard`,
+          isTransactional: true,
+          templateId: 15410,
+          firstName,
+        };
+        const mailUser = await sendMail(emailData);
+        if (!mailUser) {
+          await User.findByIdAndDelete(user._id);
+          throw new Error("Error with email service.");
+        }
+        return successResponse(req, res, {
+          statusCode: 201,
+          status: "success",
+          message: "oAuth registration successful.",
+          payload: user,
+          token,
+        });
+      }
+
+      token = await user.generateAuthToken(userAgent);
+      return successResponse(req, res, {
+        statusCode: 200,
+        status: "success",
+        message: "oAuth login successful.",
+        payload: user,
+        token,
+      });
+    } catch (error) {
+      console.log(error);
+      return errorResponse(req, res, {
+        statusCode: 500,
+        status: "failure",
+        message: "An error occured.",
+        payload: null,
+      });
+    }
+  }
+
 const resendVerificationLink = async function (req, res) {
     const { email } = req.body;
     let user, verificationLink, html, send, message;
@@ -249,5 +304,6 @@ export {
     resendVerificationLink,
     verifyAccount,
     sendPasswordResetLink,
-    resetPassword
+    resetPassword,
+    oAuth
 }
