@@ -1,6 +1,11 @@
 import express from "express";
 
 const Router = express.Router();
+import userRouter from "./user";
+
+
+Router.use("/users", userRouter);
+
 
 Router.get("/", (req, res) => {
     res.send({
